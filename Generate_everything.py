@@ -20,16 +20,27 @@ if sys.version_info < MIN_PYTHON:
 
 
 class SeqDistCalc():
-    def __init__(self,filename,matrixfile):
+    def __init__(self):
+        return
+    def calcDist(self,filename,matrixfile,single_cutoff=""):
         count=0
         matrix=self.read_Matrix(matrixfile)
+        self.seqlen=len(list(matrix.values())[0])
+        k=[k for k in matrix.keys()][0]
+        self.seqsize=len(matrix[k[0]])
+        self.seqs=dict()
+        self.cutoff_point=single_cutoff
+        self.distance_cutoff=dict()
         if filename[-2:]=="gz":
-            self.distfile=filename.replace(".gz",".dist")
-            self.processGZfile(filename,matrix,self.distfile)
+            distfile=filename.replace(".gz",".dist")
+            self.processGZfile(filename,matrix,distfile)
         else:
-            self.distfile=filename+".dist"
-            self.processTXTfile(filename,matrix,self.distfile)
-        return
+            distfile=filename+".dist"
+            self.processTXTfile(filename,matrix,distfile)
+        return distfile
+    def add_templates(self,seqTemplates):
+        self.templates=seqTemplates
+
     def read_Matrix(self,matrix_file):
         scoring_matrix=dict()
         with open(matrix_file,"rb") as f:
@@ -49,13 +60,55 @@ class SeqDistCalc():
         all_dist=[]
         #for cutoff in [x/4.0 for x in range(-12,9)]:
         for cutoff in [x/5.0 for x in range(-15,1)]:
-            dist=20
+            dist=self.seqlen
             for i,nt in enumerate(seq):
                 if float(matrix[nt][i])>float(cutoff):
                     dist-=1
             all_dist.append(dist)
         distance="\t".join(["{}".format(i) for i in all_dist])
+        dist= self.seqlen
+        score=0
+        for i,nt in enumerate(seq):
+            score+=float(matrix[nt][i])
+            if float(matrix[nt][i])>float(self.cutoff_point):
+                dist-=1
+        if dist in self.distance_cutoff:
+            self.distance_cutoff[dist]+=1
+        else:
+            self.distance_cutoff[dist]=1
+            
+        if dist<=self.seqlen/2:
+            if dist in self.seqs:
+                self.seqs[dist].append((seq,score))
+            else:
+                self.seqs[dist]=[(seq,score)]
+            
         return distance
+    def print(self,filename,maxNumber=100):
+        fn,f_ext=os.path.splitext(filename)
+        outseqs=[]
+        number=0
+        for key in self.seqs.keys():
+            for seq in self.seqs[key]:
+                if number<maxNumber:
+                    outseqs.append((seq[0],seq[1]))
+                    number+=1
+            outseqs.sort(key=lambda y: y[1])
+        with open(fn+f_ext,"w") as ofile:
+            for i,seq in enumerate(outseqs):
+                ofile.write(">seq_{} score={:0.4f}\n{}\n".format(i+1,seq[1],seq[0]))                    
+        return True
+    def printN(self,filenamebase):
+        fn,f_ext=os.path.splitext(filenamebase)
+        for key in self.seqs.keys():
+            outseqs=[]
+            for seq in self.seqs[key]:
+                outseqs.append((seq[0],seq[1]))
+            outseqs.sort(key=lambda y: y[1])
+            with open(fn+".N{}".format(key)+".fasta","w") as ofile:
+                for seq in outseqs:
+                    ofile.write(">score={:0.4f}\n{}\n".format(seq[1],seq[2]))                    
+        return True
     def processGZfile(self,filename,matrix,outname):
         with open(outname,'w') as out:
             with gzip.open(filename, 'rb') as f:
@@ -63,9 +116,19 @@ class SeqDistCalc():
                     line=f.readline()
                     if not line:
                         break
-                    seq,Dvalue=line.rstrip().split()
-                    score=self.score_Seq(seq.decode("utf-8")[1:21],matrix)
-                    out.write("{}\t{}\n".format(seq.decode("utf-8"),score))
+                    tmpseq=line.rstrip().split()[0]
+                    seq=tmpseq.decode("utf-8")
+                    if len(seq)==self.seqlen:
+                        matchTemp=True
+                        if "templates" in dir(self):
+                            for template in self.templates:
+                                matchTemp=self.matchTemplate(seq,template)
+                                if matchTemp:
+                                    break
+                        if not matchTemp:
+                            continue
+                        score=self.score_Seq(seq,matrix)
+                        out.write("{}\t{}\n".format(seq,score))
 
     def processTXTfile(self,filename,matrix,outname):
         with open(outname,'w') as out:
@@ -75,30 +138,57 @@ class SeqDistCalc():
                     if not line:
                         break
                     seq=line.rstrip()
-                    if len(seq)==20:
+                    if len(seq)==self.seqlen:
+                        matchTemp=True
+                        if "templates" in dir(self):
+                            for template in self.templates:
+                                matchTemp=self.matchTemplate(seq,template)
+                                if matchTemp:
+                                    break
+                        if not matchTemp:
+                            continue
                         score=self.score_Seq(seq,matrix)
                         out.write("{}\t{}\n".format(seq,score))
+    def matchTemplate(self,seq,template):
+        for i,AA in enumerate(template):
+            if "X"==AA:
+                continue
+            elif seq[i]==AA:
+                continue
+            else:
+                return False
+        return True
 
 class PlotHist():
-    def __init__(self,filename,outname,scaled_value):
+    def __init__(self):
         self.threshold_list=[x/5.0 for x in range(-15,1)]
+        self.maxdist=20
+    def run(self,filename,outname,scaled_value):
         distanceHash=dict()
         for T in self.threshold_list:
-            distanceHash[T]=numpy.zeros([1,21])
+            distanceHash[T]=numpy.zeros([1,self.maxdist+1])
         with open(filename, "r") as infile:
             while True:
                 line=infile.readline()
                 if not line:
                     break
                 dataline=line.rstrip().split()
+                matchTemp=True
+                if "templates" in dir(self):
+                    seq=dataline[0]
+                    for template in self.templates:
+                        matchTemp=self.matchTemplate(seq,template)
+                        if matchTemp:
+                            break
+                if not matchTemp:
+                    continue
                 for i,value in enumerate(dataline[1:]):
                     distanceHash[self.threshold_list[i]][0,int(value)]+=1
                     
-        heatmap=numpy.zeros([len(self.threshold_list),21])
-        scaledheatmap=numpy.zeros([len(self.threshold_list),21])
+        heatmap=numpy.zeros([len(self.threshold_list),self.maxdist+1])
+        scaledheatmap=numpy.zeros([len(self.threshold_list),self.maxdist+1])
         for i,T in enumerate(self.threshold_list):
             fullCount=numpy.sum(distanceHash[T])
-            #print("standard scaling {}".format(fullCount))
             for pos,n in enumerate(distanceHash[T][0,:]):
                 heatmap[i,pos]=n/float(fullCount)
                 scaledheatmap[i,pos]=n/float(scaled_value)
@@ -110,12 +200,14 @@ class PlotHist():
         writeTable(outname.replace(".pdf",".scaled.table.txt"),scaledheatmap, self.threshold_list)   
         self.plot_cum_heatmap(outname.replace(".pdf",".scaled.cumulative.pdf"),scaledheatmap)
 
-        self.plot_legend(outname.replace(".pdf","legend.pdf"))
+        self.plot_legend(outname.replace(".pdf",".legend.pdf"))
 
+    def add_templates(self,seqTemplates):
+        self.templates=seqTemplates
     def GenerateBins(self,data_list):
-        bins=numpy.zeros([1,21])
+        bins=numpy.zeros([1,self.maxdist+1])
         data=numpy.array(data_list)
-        for i in range(0,21):
+        for i in range(0,self.maxdist+1):
             bins[0,i]=len(data[data==i])/float(len(data_list))
         return bins
     def color_lookup(self,v):
@@ -159,9 +251,9 @@ class PlotHist():
                 ax.add_patch(rect)
         ax.set_yticks(range(0,len(self.threshold_list)))
         ax.set_yticklabels(["{0:.2f}".format(x) for x in self.threshold_list])
-        ax.set_xticks(range(0,21))
-        ax.grid(b=None)
-        plt.grid(b=None)
+        ax.set_xticks(range(0,self.maxdist+1))
+        ax.grid(visible=None)
+        plt.grid(visible=None)
         plt.xlabel("Amino Acid Distance")
         plt.ylabel("Matrix Threshold Value")
         plt.savefig(outpdf,bbox_inches='tight')
@@ -185,9 +277,9 @@ class PlotHist():
         ax.set_yticks(range(0,len(self.threshold_list)))
         ax.set_yticklabels(["{0:.2f}".format(x) for x in self.threshold_list])
         ax.set_xticks(range(0,21))
-        ax.set_xticklabels(["$\leq${}".format(x) for x in range(0,21)])
-        ax.grid(b=None)
-        plt.grid(b=None)
+        ax.set_xticklabels(["$\leq${}".format(x) for x in range(0,self.maxdist+1)])
+        ax.grid(visible=None)
+        plt.grid(visible=None)
         plt.xlabel("Amino Acid Distance (cumulative)")
         plt.ylabel("Matrix Threshold Value")
         plt.savefig(outpdf,bbox_inches='tight')
@@ -213,6 +305,17 @@ class PlotHist():
             ax.add_patch(rect)
         plt.savefig(outpdf,bbox_inches='tight')
         plt.close("all")
+        
+    def matchTemplate(self,seq,template):
+        #print(template)
+        for i,AA in enumerate(template):
+            if "X"==AA:
+                continue
+            elif seq[i]==AA:
+                continue
+            else:
+                return False
+        return True
 
 def writeTable(outname,data,Vect):#need to reverse the data
     thresholdVect=Vect[::-1]
@@ -233,13 +336,20 @@ def parse_args():
     all_args = argparse.ArgumentParser()
     
     # Add arguments to the parser
-    all_args.add_argument("-m","--matrix",required=True,help="matrix data")
-    all_args.add_argument("-g","--gene",required=False,help="gene")
-    all_args.add_argument("-s","--sequences",required=True,help="set of sequences")
-    all_args.add_argument("-c","--cutoff",required=False,default=-0.2,type=float,help="cut off for a hit")
+    all_args.add_argument("-m","--matrix",default="",required=False,help="matrix data")
+    all_args.add_argument("-s","--sequences",default="",required=False,help="set of sequences")
+    all_args.add_argument("-d","--distancefile",required=False,help="Distance file, generated from program or independently",default="")
+        
+    all_args.add_argument("-t","--seqtemplate",action="extend",nargs="+",type=str,required=False,help="gene")
+    all_args.add_argument("-c","--cutoff",required=False,default=-0.2,type=float,help="cut off for a hit, (default:-0.2)")
     all_args.add_argument("-o","--pdfname",required=False,default=[],help="name of the final pdf file")
     all_args.add_argument("--scale",required=False,default=85149053,type=int,help="value to scale the data by")
+    all_args.add_argument("--writeN",dest='writetop',required=False,action='store_true',help="set flag to write out with less then 4 distance seqs")
+    all_args.add_argument("--writeout",nargs='?',required=False,default=-1,type=int,help="write out top N sequences")
+    all_args.add_argument("--noseqout",dest='writetop',required=False,action='store_false',help="set flag to NOT write out less then 4 distance seqs")
+    all_args.set_defaults(writetop=False)
     #scaled_value=85149053
+    #need arg for no pdf printout
     args = vars(all_args.parse_args())
     return args
 
@@ -247,8 +357,37 @@ def main(args):
     
     matrixfile=args["matrix"]
     sequencefile=args["sequences"]
-    #cutoffvalue=args["cutoff"]
-    SDC=SeqDistCalc(sequencefile,matrixfile)
+
+    SDC=SeqDistCalc()
+    plothist=PlotHist()
+    
+    if args["seqtemplate"]:
+        SDC.add_templates(args["seqtemplate"])
+    if not args["writeout"]:
+        args["writeout"]=100
+
+    #need to deal with nothing getting through
+    distfile=""
+    if os.path.exists(args["distancefile"]):
+        distfile=args["distancefile"]
+        if args["seqtemplate"]:
+            plothist.add_templates(args["seqtemplate"])
+    elif os.path.exists(matrixfile) and os.path.exists(sequencefile):
+        distfile=SDC.calcDist(sequencefile,matrixfile,args["cutoff"])
+
+        if args["writetop"]:
+            SDC.printN(sequencefile)
+        if args["writeout"]>0:
+            SDC.print(sequencefile+".fasta",args["writeout"])
+        for dist in range(0,SDC.seqsize+1):
+            if dist in SDC.distance_cutoff:
+                print("{}\t{}".format(dist,SDC.distance_cutoff[dist]))
+            else:
+                print("{}\t{}".format(dist,0))
+
+        if len(SDC.seqs.keys())<=0:
+            print("No sequences pass templates or size")
+            exit()
 
     if args["pdfname"]:
         fn,f_ext=os.path.splitext(args["pdfname"])
@@ -256,20 +395,14 @@ def main(args):
             fn=fn+".pdf"
         elif ".pdf" not in f_ext:
             fn=args["pdfname"]+".pdf"
-        PlotHist(SDC.distfile,fn,args["scale"])
+        else:
+            fn=fn+f_ext
+        plothist.run(distfile,fn,args["scale"])
+    elif os.path.exists(distfile):
+        plothist.run(distfile,distfile.replace(".txt","").replace(".dist",".pdf"),args["scale"])
     else:
-        PlotHist(SDC.distfile,SDC.distfile.replace(".txt","").replace(".dist",".pdf"),args["scale"])
+        print("no distance file given or created")
 
 if __name__=="__main__":
     args=parse_args()
     main(args)
-    
-#Program for paper:\
-#Input:\
-#Matrix\
-#Gene\
-#DB\
-#Cutoff\
-#\
-#Output:\
-#List | dist | histogram\
