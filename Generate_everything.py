@@ -77,7 +77,7 @@ class SeqDistCalc():
         else:
             self.distance_cutoff[dist]=1
             
-        if dist<=self.seqlen/2:
+        if dist<=numpy.min([9,self.seqlen/2]):
             if dist in self.seqs:
                 self.seqs[dist].append((seq,score))
             else:
@@ -102,12 +102,16 @@ class SeqDistCalc():
         fn,f_ext=os.path.splitext(filenamebase)
         for key in self.seqs.keys():
             outseqs=[]
+            if key>4:
+                continue
             for seq in self.seqs[key]:
                 outseqs.append((seq[0],seq[1]))
             outseqs.sort(key=lambda y: y[1])
+            if len(outseqs)<1:
+                continue
             with open(fn+".N{}".format(key)+".fasta","w") as ofile:
                 for seq in outseqs:
-                    ofile.write(">score={:0.4f}\n{}\n".format(seq[1],seq[2]))                    
+                    ofile.write(">score={:0.4f}\n{}\n".format(seq[1],seq[0]))                    
         return True
     def processGZfile(self,filename,matrix,outname):
         with open(outname,'w') as out:
