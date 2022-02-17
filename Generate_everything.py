@@ -120,6 +120,8 @@ class SeqDistCalc():
                     line=f.readline()
                     if not line:
                         break
+                    if ">" in line[0]:
+                        continue
                     tmpseq=line.rstrip().split()[0]
                     seq=tmpseq.decode("utf-8")
                     if len(seq)==self.seqlen:
@@ -142,6 +144,8 @@ class SeqDistCalc():
                     if not line:
                         break
                     seq=line.rstrip()
+                    if ">" in line[0]:
+                        continue
                     if len(seq)==self.seqlen:
                         matchTemp=True
                         if "templates" in dir(self):
@@ -340,17 +344,18 @@ def parse_args():
     all_args = argparse.ArgumentParser()
     
     # Add arguments to the parser
-    all_args.add_argument("-m","--matrix",default="",required=False,help="matrix data")
-    all_args.add_argument("-s","--sequences",default="",required=False,help="set of sequences")
-    all_args.add_argument("-d","--distancefile",required=False,help="Distance file, generated from program or independently",default="")
+    all_args.add_argument("-m","--matrix",default="",required=False,help="Argument to assign the file containing the distance")
+    group=all_args.add_mutually_exclusive_group(required=True)
+    group.add_argument("-s","--sequences",default="",help="Argument to assign the file containing just the sequences as a list. This can be in fasta format.")
+    group.add_argument("-d","--distancefile",help="Argument to assign the distance file, generated from program or independently",default="")
         
-    all_args.add_argument("-t","--seqtemplate",action="extend",nargs="+",type=str,required=False,help="gene")
-    all_args.add_argument("-c","--cutoff",required=False,default=-0.2,type=float,help="cut off for a hit, (default:-0.2)")
-    all_args.add_argument("-o","--pdfname",required=False,default=[],help="name of the final pdf file")
-    all_args.add_argument("--scale",required=False,default=85149053,type=int,help="value to scale the data by")
-    all_args.add_argument("--writeN",dest='writetop',required=False,action='store_true',help="set flag to write out with less then 4 distance seqs")
-    all_args.add_argument("--writeout",nargs='?',required=False,default=-1,type=int,help="write out top N sequences")
-    all_args.add_argument("--noseqout",dest='writetop',required=False,action='store_false',help="set flag to NOT write out less then 4 distance seqs")
+    all_args.add_argument("-t","--seqtemplate",action="extend",nargs="+",type=str,required=False,help="Argument to assign gene template(s) that the sequence must match one of the templates This should be given like: XXXXXXYDSXXXXX. The default is no template.")
+    all_args.add_argument("-c","--cutoff",required=False,default=-0.2,type=float,help="Argument to set the cut off for a hit on if the amino acid is good, (default:-0.2)")
+    all_args.add_argument("-o","--pdfname",required=False,default=[],help="Argument to set the basename of the output pdf file (default:derived from the distance file)")
+    all_args.add_argument("--scale",required=False,default=85149053,type=int,help="Argument to set the number to scale the scaled histogram (default:85149053)")
+    all_args.add_argument("--write4",dest='writetop',required=False,action='store_true',help="Set flag to write out with less then 4 distance sequences")
+    all_args.add_argument("--writeout",nargs='?',required=False,default=-1,type=int,help="Flag to write out top sequences, default is 100 sequences optional argument changes this number (default:False)")
+    all_args.add_argument("--noseqout",dest='writetop',required=False,action='store_false',help="Set flag to NOT write out less then 4 distance sequences (default)")
     all_args.set_defaults(writetop=False)
     #scaled_value=85149053
     #need arg for no pdf printout
