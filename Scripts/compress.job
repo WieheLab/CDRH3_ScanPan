@@ -1,0 +1,12 @@
+#!/bin/bash
+#SBATCH --job-name=compress
+#SBATCH --out=compres-%j.out
+#SBATCH --ntasks=1
+#SBATCH --mem=16G
+#SBATCH --partition=dhvi
+#SBATCH --ntasks-per-node=1
+
+
+for file in *consensus.txt; do 
+gzip ${file}; 
+done

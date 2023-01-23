@@ -1,0 +1,20 @@
+#!/bin/bash
+#SBATCH --job-name=SE_calc
+#SBATCH --ntasks=1
+#SBATCH --error=slurm-%j.err
+#SBATCH --mem=16G
+#SBATCH --partition=dhvi
+#SBATCH --ntasks-per-node=1
+
+date
+echo "made seq"
+python3 Calc_Site_Variation.py madeSeq.fasta > Made_seq_SE.txt
+echo "briney"
+python3 Calc_Site_Variation.py briney_wD_len.fasta > briney_SE.txt
+echo "igor"
+python3 Calc_Site_Variation.py igor_generated.fasta > igor_SE.txt
+
+date
+
+
+
