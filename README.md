@@ -18,19 +18,19 @@ python CDRH3_ScanPan.py -m <matrixfile> -s <seqset>
 
 ## Arguments
 
--m \<matrix\>
+-m \<matrix\>  -  scoring matrix to use for scoring sequences
 
--s <sequence file>
+-s \<sequence file\>  -  file containing all the sequences, expecting fasta format
 
--d <distance file>
+-d \<distance file\>  -  name of generated distance file
 
--g <gene>
+-g \<gene\>  -  looks for specific D gene
 
--c <cutoff>
+-c \<cutoff\>  -  cut off used to determine a hit or miss from the matrix file when calculating the distance
 
--o <pdffile name>
+-o \<pdffile name\>  -  output pdf name for the results
 
---scale <scale to use>
+--scale <scale to use>  -  scale to use when generating the histograms with the default set to the number of sequences
 
 --writetop <write seqs with <5 dist to file>
 
