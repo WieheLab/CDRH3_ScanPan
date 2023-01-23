@@ -18,15 +18,24 @@ python CDRH3_ScanPan.py -m <matrixfile> -s <seqset>
 
 ## Arguments
 
--m <matrix> \
--s <sequence file> \
--d <distance file> \
--g <gene> \
--c <cutoff> \
--o <pdffile name> \
---scale <scale to use> \
---writetop <write seqs with <5 dist to file> \
---noseqout <do not write seqs with <5 dist to file> \
+-m \<matrix\>
+
+-s <sequence file>
+
+-d <distance file>
+
+-g <gene>
+
+-c <cutoff>
+
+-o <pdffile name>
+
+--scale <scale to use>
+
+--writetop <write seqs with <5 dist to file>
+
+--noseqout <do not write seqs with <5 dist to file>
+
 
 # Directory Generate_Igor_Seqs
 
