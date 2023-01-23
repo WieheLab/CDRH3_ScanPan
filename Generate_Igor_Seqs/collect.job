@@ -1,0 +1,40 @@
+#!/bin/bash
+#SBATCH --job-name=igor_runs
+#SBATCH --ntasks=1
+#SBATCH --error=igorcollect-%j.err
+#SBATCH --out=igorcollect-%j.out
+#SBATCH --mem=128G
+#SBATCH --partition=dhvi
+#SBATCH --ntasks-per-node=1
+
+
+goal=5000000000
+
+for file in $(find . -iname "translated_*.fasta")
+do
+    #grep -v ">" ${file} | grep -x '.\{17\}' >> Igor_gen_N15_seqs.fasta
+    grep -v ">" ${file} | grep -x '.\{22\}' >> Igor_gen_N20_seqs_all.fasta
+    rm ${file}
+done
+
+#code for sorting out unique sequences
+#sort Igor_gen_N15_seqs.fasta | uniq | grep -v "X" | grep -v "*" >> tmp;
+#rm -rf /tmp/* 
+#mv tmp Igor_gen_N15_seqs.fasta
+sort Igor_gen_N20_seqs_all.fasta  >> tmp;
+mv tmp Igor_gen_N20_seqs_all.fasta
+sort Igor_gen_N20_seqs_all.fasta | uniq > Igor_gen_N20_seqs_all.uniq.fasta
+
+sed "s|^|>seq\n|" Igor_gen_N20_seqs_all.fasta >> Igor_gen_N20_all.fasta
+
+Numb_seqs=$(wc -l Igor_gen_N20_seqs_all.fasta)
+
+if [ $Numb_seqs -lt $goal ]
+then
+    echo "rerunning"
+    bash create_cdr3_seqs.sh 1 10 100000000
+fi
+
+echo "20 count length" $(grep -v ">" Igor_gen_N20_seqs_all.fasta | wc -l)
+echo "20 count length" $(grep -v ">" Igor_gen_N20_seqs_all.uniq.fasta | wc -l) "uniq"
+#rm -r seq

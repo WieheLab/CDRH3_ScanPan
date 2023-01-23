@@ -1,0 +1,31 @@
+#!/bin/bash
+#SBATCH --job-name=igor_counts
+#SBATCH --ntasks=1
+#SBATCH --error=igorCount-%j.err
+#SBATCH --mem=16G
+#SBATCH --partition=dhvi
+#SBATCH --ntasks-per-node=1
+#SBATCH --exclude=dcc-dhvi-[09,10,11]
+
+numbSeq=100000000
+#numbSeq=1000
+label=countruns
+
+date
+SECONDS=0
+
+~/IGoR/igor_src/igor  -batch seq${label} -species human -chain heavy_naive -generate ${numbSeq} --noerr --CDR3 --name set${label} -set_wd $(pwd)/seq
+
+file=$(pwd)/seq/seq${label}_generated/generated_seqs_noerr_CDR3_info.csv
+
+tail -n +2 ${file} | cut -f 2 -d ',' | sed "s|^|>seq\n|g" | tr ";" "\n" > tmp_${label}.fasta
+translater -i tmp_${label}.fasta > translated_${label}.fasta
+rm tmp_${label}.fasta
+rm -r $(pwd)/seq/seq${label}_generated
+duration=$SECONDS
+
+echo "full count" $(grep -v ">" translated_${label}.fasta | wc -l)
+echo "functional count" $(grep -v ">" translated_${label}.fasta | grep -v "*" | wc -l)
+echo "uniq full count" $(grep -v ">" translated_${label}.fasta | sort| uniq | wc -l)
+echo "uniq functional count" $(grep -v ">" translated_${label}.fasta | grep -v "*" | sort | uniq | wc -l)
+date

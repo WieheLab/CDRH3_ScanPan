@@ -359,6 +359,12 @@ def parse_args():
     all_args.set_defaults(writetop=False)
     #scaled_value=85149053
     #need arg for no pdf printout
+    
+    if len(sys.argv)==1:
+        all_args.print_help(sys.stderr)
+        sys.exit(1)
+        
+    
     args = vars(all_args.parse_args())
     return args
 

@@ -1,0 +1,37 @@
+#!/bin/bash
+#SBATCH --job-name=igor_runs
+#SBATCH --ntasks=1
+#SBATCH --error=slurm-%j.err
+#SBATCH --mem=3G
+#SBATCH --partition=dhvi
+#SBATCH --ntasks-per-node=1
+#SBATCH --exclude=dcc-dhvi-[09,10,11]
+
+if (( $# < 1 ))
+then
+	label=$(head /dev/urandom | tr -dc A-Z0-9 |head -c 4;echo '')
+else
+	label=${1}
+fi
+
+if (( $# < 2 )); then
+	numbSeq=50000000
+else
+	numbSeq=${2}
+fi
+
+
+date
+SECONDS=0
+#igor  -batch seq1 -species human -chain heavy_naive -generate 100000000 -set_wd /datacommons/dhvi/jsmb/seq1 --noerr --CDR3 --name set1
+~/IGoR/igor_src/igor  -batch seq${label} -species human -chain heavy_naive -generate ${numbSeq} --noerr --CDR3 --name set${label} -set_wd $(pwd)/seq
+
+file=$(pwd)/seq/seq${label}_generated/generated_seqs_noerr_CDR3_info.csv
+
+tail -n +2 ${file} | cut -f 2 -d ',' | sed "s|^|>seq\n|g" | tr ";" "\n" > tmp_${label}.fasta
+translater -i tmp_${label}.fasta > translated_${label}.fasta
+rm tmp_${label}.fasta
+rm -r $(pwd)/seq/seq${label}_generated
+duration=$SECONDS
+echo "$(($duration / 60)) minutes $(($duration % 60)) sec" ${numbSeq} >> timelist.txt
+date

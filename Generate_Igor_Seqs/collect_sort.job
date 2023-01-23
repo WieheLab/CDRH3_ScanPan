@@ -1,0 +1,40 @@
+#!/bin/bash
+#SBATCH --job-name=igor_runs
+#SBATCH --ntasks=1
+#SBATCH --error=igorcollect-%j.err
+#SBATCH --out=igorcollect-%j.out
+#SBATCH --mem=128G
+#SBATCH --partition=dhvi
+#SBATCH --ntasks-per-node=1
+#SBATCH --exclude=dcc-dhvi-[09,10,11]
+
+date > outdata.txt
+rm -rf /tmp/*
+
+for file in $(find . -iname "translated_*.fasta")
+do
+    grep -v ">" ${file} | grep -x '.\{17\}' >> Igor_gen_N15_seqs.fasta
+    grep -v ">" ${file} | grep -x '.\{22\}' >> Igor_gen_N20_seqs.fasta
+    rm ${file}
+done
+rm -rf /tmp/* 
+#code for sorting out unique sequences
+sort Igor_gen_N15_seqs.fasta | uniq | grep -v "X" | grep -v "*" >> tmp;
+rm -rf /tmp/* 
+mv tmp Igor_gen_N15_seqs.fasta
+sort Igor_gen_N20_seqs.fasta | uniq | grep -v "X" | grep -v "*" >> tmp;
+mv tmp Igor_gen_N20_seqs.fasta
+rm -rf /tmp/* 
+
+sed "s|^|>seq\n|" Igor_gen_N15_seqs.fasta >> Igor_gen_N15.fasta
+sed "s|^|>seq\n|" Igor_gen_N20_seqs.fasta >> Igor_gen_N20.fasta
+
+
+weblogo -S 1 --units probability -c chemistry -n 150 --format pdf -P "" --color red ED 'neg' --color purple QN '' --color blue KHR '' --color green SGCYT '' --color black VLPFWAIM '' -a ACDEFGHIKLMNPQRSTVWXY -f Igor_gen_N15.fasta -o Igor_gen_N15.pdf
+weblogo -S 1 --units probability -c chemistry -n 150 --format logodata -P "" --color red ED 'neg' --color purple QN '' --color blue KHR '' --color green SGCYT '' --color black VLPFWAIM '' -a ACDEFGHIKLMNPQRSTVWXY -f Igor_gen_N15.fasta  -o Igor_gen_N15_table.txt
+weblogo -S 1 --units probability -c chemistry -n 150 --format pdf -P "" --color red ED 'neg' --color purple QN '' --color blue KHR '' --color green SGCYT '' --color black VLPFWAIM '' -a ACDEFGHIKLMNPQRSTVWXY -f Igor_gen_N20.fasta  -o Igor_gen_N20.pdf
+weblogo -S 1 --units probability -c chemistry -n 150 --format logodata -P "" --color red ED 'neg' --color purple QN '' --color blue KHR '' --color green SGCYT '' --color black VLPFWAIM '' -a ACDEFGHIKLMNPQRSTVWXY -f Igor_gen_N20.fasta  -o Igor_gen_N20_table.txt
+
+echo "15 count length" $(grep -v ">" Igor_gen_N15.fasta | wc -l)
+echo "20 count length" $(grep -v ">" Igor_gen_N20.fasta | wc -l)
+#rm -r seq
