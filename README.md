@@ -50,7 +50,7 @@ The directory Generate_Igor_Seqs contains scripts for generating random sets of 
 
 # Directory Scripts
 
-run_weblogo.V3.sh - bash script to generate logo plots using weblogo \
-calc_SE.job - bash script job script for running the Calc_Site_Variation.py script on multiple sequences\
-Calc_Site_Variation.py - python script used to calculate the shannon entropy of a sequence set\
-compress.job - bash script job script for slurm to use gzip to compress consensus.txt files\
+**run_weblogo.V3.sh** - bash script to generate logo plots using weblogo \
+**calc_SE.job** - bash script job script for running the Calc_Site_Variation.py script on multiple sequences\
+**Calc_Site_Variation.py** - python script used to calculate the shannon entropy of a sequence set\
+**compress.job** - bash script job script for slurm to use gzip to compress consensus.txt files\
